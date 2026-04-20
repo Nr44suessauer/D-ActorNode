@@ -3294,6 +3294,7 @@ void handleSystemInfo() {
   bool wifiConnected = WiFi.status() == WL_CONNECTED;
   String wifiSsid = wifiConnected ? WiFi.SSID() : "";
   String wifiIp = wifiConnected ? WiFi.localIP().toString() : "";
+  String wifiHostname = String(WiFi.getHostname());
   int wifiRssi = wifiConnected ? WiFi.RSSI() : 0;
 
   String jsonResponse = "{"
@@ -3305,6 +3306,7 @@ void handleSystemInfo() {
     "\"flashSize\":" + String(ESP.getFlashChipSize()) + ","
     "\"wifiConnected\":" + String(wifiConnected ? "true" : "false") + ","
     "\"wifiSsid\":\"" + wifiSsid + "\","
+    "\"wifiHostname\":\"" + wifiHostname + "\","
     "\"wifiIp\":\"" + wifiIp + "\","
     "\"wifiRssi\":" + String(wifiRssi) +
     "}";

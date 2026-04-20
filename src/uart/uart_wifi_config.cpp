@@ -101,7 +101,9 @@ static void processWifiCommand(const char* cmd) {
             Serial.println("  Mode          : Station (STA)");
             Serial.printf("  Connected to  : %s\n", WiFi.SSID().c_str());
             Serial.printf("  IP address    : %s\n", WiFi.localIP().toString().c_str());
-            Serial.printf("  Signal strength: %d dBm\n", WiFi.RSSI());
+            Serial.printf("  Signal        : %d dBm\n", WiFi.RSSI());
+            Serial.printf("  Web interface : http://%s\n", WiFi.localIP().toString().c_str());
+            Serial.printf("                  http://%s.local\n", WiFi.getHostname());
         } else {
             Serial.println("  Connection    : NOT CONNECTED");
         }
@@ -118,7 +120,7 @@ static void processWifiCommand(const char* cmd) {
         }
         strncpy(pendingSsid, val, sizeof(pendingSsid) - 1);
         pendingSsid[sizeof(pendingSsid) - 1] = '\0';
-        Serial.printf("✓ SSID staged: \"%s\"  ->  use 'wifi save' to apply\n", pendingSsid);
+        Serial.printf("✓ SSID staged: \"%s\" (%d chars)  ->  use 'wifi save' to apply\n", pendingSsid, (int)strlen(pendingSsid));
         return;
     }
 
@@ -127,7 +129,7 @@ static void processWifiCommand(const char* cmd) {
         const char* val = cmd + 5;
         strncpy(pendingPass, val, sizeof(pendingPass) - 1);
         pendingPass[sizeof(pendingPass) - 1] = '\0';
-        Serial.println("✓ Password staged  ->  use 'wifi save' to apply");
+        Serial.printf("✓ Password staged (%d chars)  ->  use 'wifi save' to apply\n", (int)strlen(pendingPass));
         return;
     }
 
@@ -149,9 +151,18 @@ static void processWifiCommand(const char* cmd) {
         char ssid[64], pass[64], host[32];
         getWiFiConfig(ssid, pass, host);
 
-        if (pendingSsid[0]) strncpy(ssid, pendingSsid, sizeof(ssid) - 1);
-        if (pendingPass[0]) strncpy(pass, pendingPass, sizeof(pass) - 1);
-        if (pendingHost[0]) strncpy(host, pendingHost, sizeof(host) - 1);
+        bool anyPending = pendingSsid[0] || pendingPass[0] || pendingHost[0];
+        if (!anyPending) {
+            Serial.println("[WiFi] No pending changes. Current stored config:");
+            Serial.printf("  SSID    : %s\n", ssid[0] ? ssid : "(not set)");
+            Serial.printf("  Hostname: %s\n", host);
+            Serial.println("  Reconnecting with stored config...");
+        } else {
+            Serial.println("[WiFi] Applying staged changes:");
+            if (pendingSsid[0]) { Serial.printf("  SSID     : \"%s\" -> \"%s\"\n", ssid[0] ? ssid : "(none)", pendingSsid); strncpy(ssid, pendingSsid, sizeof(ssid) - 1); }
+            if (pendingPass[0]) { Serial.println("  Password : (updated)"); strncpy(pass, pendingPass, sizeof(pass) - 1); }
+            if (pendingHost[0]) { Serial.printf("  Hostname : \"%s\" -> \"%s\"\n", host, pendingHost); strncpy(host, pendingHost, sizeof(host) - 1); }
+        }
         ssid[sizeof(ssid)-1] = '\0';
         pass[sizeof(pass)-1] = '\0';
         host[sizeof(host)-1] = '\0';
@@ -162,7 +173,7 @@ static void processWifiCommand(const char* cmd) {
         memset(pendingPass, 0, sizeof(pendingPass));
         memset(pendingHost, 0, sizeof(pendingHost));
 
-        Serial.printf("💾 Wi-Fi configuration saved (SSID: %s, Hostname: %s)\n", ssid, host);
+        Serial.printf("💾 Saved  ->  SSID: \"%s\"  |  Hostname: \"%s\"\n", ssid[0] ? ssid : "(none)", host);
         Serial.println("   Reconnecting...");
         WiFi.disconnect(true);
         delay(300);
@@ -194,6 +205,7 @@ static void processWifiCommand(const char* cmd) {
             Serial.printf("[WiFi] IP address : %s\n", WiFi.localIP().toString().c_str());
             Serial.printf("[WiFi] SSID       : %s\n", WiFi.SSID().c_str());
             Serial.printf("[WiFi] Hostname   : %s\n", WiFi.getHostname());
+            Serial.printf("[WiFi] Web        : http://%s\n", WiFi.localIP().toString().c_str());
         } else {
             Serial.println("[WiFi] Not connected.");
         }
@@ -290,32 +302,41 @@ static void processMotorCommand(const char* cmd) {
     if (strcasecmp(cmd, "status") == 0) {
         Motor28BYJ48Status s = get28BYJ48MotorStatus();
         Serial.println("\n[Motor Status]");
-        Serial.printf("  Current position : %d\n", s.currentPosition);
-        Serial.printf("  Target position  : %d\n", s.targetPosition);
-        Serial.printf("  Moving           : %s\n", s.isMoving ? "Yes" : "No");
-        Serial.printf("  Speed            : %d\n", s.currentSpeed);
-        Serial.printf("  Homed            : %s\n", s.isHomed ? "Yes" : "No");
+        Serial.printf("  Position : %d steps  (%.1f°)\n", s.currentPosition, s.currentPosition * 360.0f / 4096.0f);
+        Serial.printf("  Target   : %d steps  (%.1f°)\n", s.targetPosition, s.targetPosition * 360.0f / 4096.0f);
+        Serial.printf("  Moving   : %s\n", s.isMoving ? "Yes" : "No");
+        Serial.printf("  Speed    : %d\n", s.currentSpeed);
+        Serial.printf("  Homed    : %s\n", s.isHomed ? "Yes" : "No  (run 'motor home' to set reference position)");
         return;
     }
 
     // ── motor stop ────────────────────────────────────────────────────────
     if (strcasecmp(cmd, "stop") == 0) {
         stop28BYJ48Motor();
-        Serial.println("✓ Motor stopped.");
+        {
+            Motor28BYJ48Status s = get28BYJ48MotorStatus();
+            Serial.printf("✓ Motor stopped at position %d steps (%.1f°).\n", s.currentPosition, s.currentPosition * 360.0f / 4096.0f);
+        }
         return;
     }
 
     // ── motor home ────────────────────────────────────────────────────────
     if (strcasecmp(cmd, "home") == 0) {
         home28BYJ48Motor();
-        Serial.println("✓ Home position reached.");
+        {
+            Motor28BYJ48Status s = get28BYJ48MotorStatus();
+            Serial.printf("✓ Motor at home position (step %d, %.1f°). Homed flag set.\n", s.currentPosition, s.currentPosition * 360.0f / 4096.0f);
+        }
         return;
     }
 
     // ── motor calibrate ───────────────────────────────────────────────────
     if (strcasecmp(cmd, "calibrate") == 0) {
         calibrate28BYJ48Motor();
-        Serial.println("✓ Calibration complete.");
+        {
+            Motor28BYJ48Status s = get28BYJ48MotorStatus();
+            Serial.printf("✓ Calibration complete. Reference position: %d steps (%.1f°).\n", s.currentPosition, s.currentPosition * 360.0f / 4096.0f);
+        }
         return;
     }
 
@@ -335,7 +356,7 @@ static void processMotorCommand(const char* cmd) {
             return;
         }
         move28BYJ48Motor(steps, dir);
-        Serial.printf("✓ Motor: %d steps, direction %d\n", steps, dir);
+        Serial.printf("✓ Motor moving: %d steps %s  (%.1f°)\n", steps, dir ? "CW" : "CCW", steps * 360.0f / 4096.0f);
         return;
     }
 
@@ -348,7 +369,7 @@ static void processMotorCommand(const char* cmd) {
             return;
         }
         move28BYJ48MotorDegrees(deg, dir);
-        Serial.printf("✓ Motor: %.1f degrees, direction %d\n", deg, dir);
+        Serial.printf("✓ Motor moving: %.1f° %s  (~%d steps)\n", deg, dir ? "CW" : "CCW", (int)(deg * 4096.0f / 360.0f));
         return;
     }
 
@@ -368,15 +389,17 @@ static void processLedCommand(const char* cmd) {
             return;
         }
         setColorRGB(r, g, b);
-        Serial.printf("✓ LED color set: R=%d G=%d B=%d\n", r, g, b);
+        Serial.printf("✓ LED color set: R=%-3d G=%-3d B=%-3d  (#%02X%02X%02X)\n", r, g, b, r, g, b);
         return;
     }
 
     // ── led brightness <value> ───────────────────────────────────────────
     if (strncasecmp(cmd, "brightness ", 11) == 0) {
         int bri = atoi(cmd + 11);
+        if (bri < 0) bri = 0;
+        if (bri > 255) bri = 255;
         setBrightness(bri);
-        Serial.printf("✓ LED brightness set: %d\n", bri);
+        Serial.printf("✓ LED brightness: %d / 255  (%.0f%%)\n", bri, bri * 100.0f / 255.0f);
         return;
     }
 
@@ -384,7 +407,9 @@ static void processLedCommand(const char* cmd) {
     if (strncasecmp(cmd, "index ", 6) == 0) {
         int idx = atoi(cmd + 6);
         setColorByIndex(idx);
-        Serial.printf("✓ LED color index set: %d\n", idx);
+        const char* colorNames[] = {"Red", "Green", "Blue", "Yellow", "Purple", "Orange", "White"};
+        const char* name = (idx >= 0 && idx < 7) ? colorNames[idx] : "Custom";
+        Serial.printf("✓ LED color index: %d  (%s)\n", idx, name);
         return;
     }
 
@@ -535,6 +560,9 @@ static void processCommand(const char* line) {
 // ─── Public functions ─────────────────────────────────────────────────────
 
 void setupUartWifiConfig() {
+    Serial.println();
+    Serial.println("[System] Verbunden \u2013 115200 Baud, 8N1.");
+    Serial.println("[System] Tipp: \"wifi status\" oder \"device status\" eingeben.");
     printHelp();
 }
 
@@ -546,7 +574,9 @@ void handleUartWifiConfig() {
 
         if (c == '\n' || inputPos >= (int)sizeof(inputBuffer) - 1) {
             inputBuffer[inputPos] = '\0';
-            if (inputPos > 0) {                Serial.printf("\n> %s\n", inputBuffer);  // Echo: confirm command                processCommand(inputBuffer);
+            if (inputPos > 0) {
+                Serial.printf("\n> %s\n", inputBuffer);
+                processCommand(inputBuffer);
             }
             inputPos = 0;
         } else {

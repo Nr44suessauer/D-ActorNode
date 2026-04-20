@@ -211,6 +211,91 @@ wifi reset
 
 ---
 
+## Example Session (Realistic Terminal Output)
+
+The following shows a complete serial session – from connecting to the device through staging credentials, saving, and verifying the result.
+
+```
+--- Warte auf Verbindung ---
+[System] Verbindung hergestellt – Baudrate 115200.
+[System] Tippe "wifi status" oder "device status" zum Starten.
+
+> wifi ssid HomeNetwork
+✓ SSID staged: "HomeNetwork"  ->  use 'wifi save' to apply
+
+> wifi pass S3cureP@ss!
+✓ Password staged  ->  use 'wifi save' to apply
+
+> wifi host iscan-unit-1
+✓ Hostname staged: "iscan-unit-1"  ->  use 'wifi save' to apply
+
+> device name IScan-Pos-01
+✓ Device name set: "IScan-Pos-01"
+
+> device number 001
+✓ Device number set: "001"
+
+> device config StandardScan
+✓ Configuration set: "StandardScan"
+
+> device desc "Positioniereinheit Schiene A"
+✓ Description set: "Positioniereinheit Schiene A"
+
+> device status
+
+[Device Status]
+  Device name (AP-SSID): IScan-Pos-01
+  Device number        : 001
+  Configuration        : StandardScan
+  Description          : Positioniereinheit Schiene A
+
+> wifi save
+💾 Wi-Fi configuration saved (SSID: HomeNetwork, Hostname: iscan-unit-1)
+   Reconnecting...
+[WiFi] Hostname: iscan-unit-1
+[WiFi] Connecting to Wi-Fi: HomeNetwork
+..........
+[WiFi] Connected to: HomeNetwork
+[WiFi] Local IP:      192.168.1.42
+[WiFi] Hostname:      iscan-unit-1
+
+> wifi save
+💾 Wi-Fi configuration saved (SSID: HomeNetwork, Hostname: iscan-unit-1)
+   Reconnecting...
+[WiFi] Hostname: iscan-unit-1
+[WiFi] Connecting to Wi-Fi: HomeNetwork
+.....
+[WiFi] Connected to: HomeNetwork
+[WiFi] Local IP:      192.168.1.42
+[WiFi] Hostname:      iscan-unit-1
+
+> wifi status
+
+[Wi-Fi Status]
+  Saved SSID    : HomeNetwork
+  mDNS hostname : iscan-unit-1
+  Device name/AP: IScan-Pos-01
+  Mode          : Station (STA)
+  Connected to  : HomeNetwork
+  IP address    : 192.168.1.42
+  Signal strength: -58 dBm
+
+> wifi status
+
+[Wi-Fi Status]
+  Saved SSID    : HomeNetwork
+  mDNS hostname : iscan-unit-1
+  Device name/AP: IScan-Pos-01
+  Mode          : Station (STA)
+  Connected to  : HomeNetwork
+  IP address    : 192.168.1.42
+  Signal strength: -57 dBm
+```
+
+> **Note:** Calling `wifi save` a second time without new staged changes is safe – it re-applies the stored configuration and triggers a reconnect. The IP address may differ slightly between calls if the DHCP lease was refreshed.
+
+---
+
 ## Notes
 
 - Commands are case-insensitive. SSID, password and device name are case-sensitive.

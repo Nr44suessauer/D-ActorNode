@@ -204,9 +204,6 @@ void savePinConfig() {
     currentPinConfig.isValid = true;
     
     preferences.end();
-    
-    Serial.println("💾 Pin configuration saved to NVS");
-    printPinConfig();
 }
 
 /**
@@ -545,8 +542,6 @@ void saveDeviceInfo() {
     preferences.putString("description", currentDeviceInfo.description);
     
     preferences.end();
-    
-    Serial.println("💾 Device information saved to NVS");
 }
 
 /**
@@ -562,7 +557,6 @@ DeviceInfo getDeviceInfo() {
 void setDeviceName(const char* name) {
     currentDeviceInfo.deviceName = String(name);
     saveDeviceInfo();
-    Serial.println("\u2705 Device name set: " + currentDeviceInfo.deviceName);
 }
 
 /**
@@ -571,7 +565,6 @@ void setDeviceName(const char* name) {
 void setDeviceNumber(const char* number) {
     currentDeviceInfo.deviceNumber = String(number);
     saveDeviceInfo();
-    Serial.println("\u2705 Device number set: " + currentDeviceInfo.deviceNumber);
 }
 
 /**
@@ -580,7 +573,6 @@ void setDeviceNumber(const char* number) {
 void setConfiguration(const char* config) {
     currentDeviceInfo.configuration = String(config);
     saveDeviceInfo();
-    Serial.println("\u2705 Configuration set: " + currentDeviceInfo.configuration);
 }
 
 /**
@@ -589,6 +581,5 @@ void setConfiguration(const char* config) {
 void setDescription(const char* desc) {
     currentDeviceInfo.description = String(desc);
     saveDeviceInfo();
-    Serial.println("\u2705 Description set: " + currentDeviceInfo.description);
 }
 

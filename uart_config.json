@@ -1,0 +1,68 @@
+{
+  "wifi": {
+    "ssid": "MyNetwork",
+    "password": "MyPassword",
+    "mdns_hostname": "D-ActorNode"
+  },
+  "device": {
+    "name": "D-ActorNode",
+    "number": "1",
+    "configuration": "default",
+    "description": "Position Unit"
+  },
+  "motor": {
+    "speed": 500,
+    "current_position": 0,
+    "target_position": 0,
+    "is_moving": false,
+    "is_homed": false
+  },
+  "led": {
+    "color": {
+      "r": 0,
+      "g": 0,
+      "b": 255
+    },
+    "brightness": 128,
+    "color_index": 0
+  },
+  "button": {
+    "enabled": true
+  },
+  "registry": [
+    {
+      "type": "button",
+      "name": "MyBtn",
+      "pin": 45,
+      "pullup": 1
+    },
+    {
+      "type": "led",
+      "name": "StatusLED",
+      "pin": 38
+    },
+    {
+      "type": "motor",
+      "comment": "28BYJ-48 Schrittmotor – benötigt 4 Steuerpins (IN1–IN4)",
+      "name": "MainMotor",
+      "pin1": 6,
+      "pin2": 4,
+      "pin3": 7,
+      "pin4": 5
+    },
+    {
+      "type": "servo",
+      "comment": "Servo – 1 PWM-Pin pro Instanz",
+      "name": "ServoA",
+      "pin": 14
+    },
+    {
+      "type": "stepper",
+      "comment": "Stepper (NEMA17 / A4988) – STEP + DIR + optionaler ENABLE-Pin",
+      "name": "StepperX",
+      "step_pin": 37,
+      "dir_pin": 36,
+      "enable_pin": -1
+    }
+  ]
+}
