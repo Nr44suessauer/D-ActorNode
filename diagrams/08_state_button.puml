@@ -1,0 +1,61 @@
+@startuml 08_State_Button
+skinparam linetype ortho
+skinparam BackgroundColor #FAFAFA
+skinparam ArrowColor #336699
+skinparam StateBackgroundColor #DDEEFF
+skinparam StateBorderColor #336699
+skinparam defaultTextAlignment center
+skinparam noteBackgroundColor #FFFDE7
+skinparam noteBorderColor #F9A825
+
+title State Diagram – Button Control  (src/drivers/button_control.cpp)\nenabled/disabled · pressed/released
+
+[*] --> INIT : setupButton()
+
+state INIT {
+    : buttonPrefs.begin("button_cfg")\nbuttonEnabled = NVS.getBool("enabled", true)\npinMode(BUTTON_PIN, INPUT)\nbuttonState = digitalRead(BUTTON_PIN)
+}
+
+INIT --> ENABLED  : buttonEnabled == true\n-> attachInterrupt(CHANGE)
+INIT --> DISABLED : buttonEnabled == false\n-> no interrupt
+
+' ─── ENABLED-Superstate ───────────────────────────────────────────────────────
+state ENABLED {
+    state RELEASED {
+        : buttonState = HIGH\ngetButtonState() → false
+    }
+
+    state DEBOUNCING {
+        : isr_triggered = true\nisr_time_ms set\n(millis() - isr_time_ms) < 25ms\n-> no read yet
+    }
+
+    state PRESSED {
+        : buttonState = LOW\ngetButtonState() → true
+    }
+
+    [*]        --> RELEASED
+    RELEASED   --> DEBOUNCING : ISR fires (FALLING)\nisr_triggered = true
+    DEBOUNCING --> PRESSED    : (millis() - isr_time_ms) >= 25ms\n-> digitalRead = LOW
+    DEBOUNCING --> RELEASED   : (millis() - isr_time_ms) >= 25ms\n-> digitalRead = HIGH\n(bounce / brief contact)
+    PRESSED    --> DEBOUNCING : ISR fires (RISING)\nisr_triggered = true
+    DEBOUNCING --> RELEASED   : (millis() - isr_time_ms) >= 25ms\n→ digitalRead = HIGH
+}
+
+' ─── DISABLED state ───────────────────────────────────────────────────────────
+state DISABLED {
+    : no interrupt active\ngetButtonState() -> always false
+}
+
+' ─── Transitions between ENABLED and DISABLED ──────────────────────────────────────
+ENABLED  --> DISABLED : setButtonEnabled(false)\n-> detachInterrupt\n-> NVS.putBool("enabled", false)
+DISABLED --> ENABLED  : setButtonEnabled(true)\n-> attachInterrupt(CHANGE)\n-> NVS.putBool("enabled", true)
+
+note right of DISABLED
+  Can be changed via:
+  . HTTP GET /setButtonEnabled?enabled=0|1
+  . UART: button enable / button disable
+  . Web UI toggle button
+  Persistence: NVS namespace "button_cfg", key "enabled"
+end note
+
+@enduml

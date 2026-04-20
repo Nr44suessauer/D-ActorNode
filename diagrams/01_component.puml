@@ -1,0 +1,89 @@
+@startuml 01_ComponentDiagram
+skinparam linetype ortho
+skinparam componentStyle rectangle
+skinparam defaultTextAlignment center
+skinparam BackgroundColor #FAFAFA
+skinparam ComponentBackgroundColor #DDEEFF
+skinparam ComponentBorderColor #336699
+skinparam ArrowColor #336699
+skinparam PackageBackgroundColor #F0F4FF
+skinparam PackageBorderColor #336699
+
+title Component Diagram – PositionUnit_with_API
+
+' ─── Entry point ────────────────────────────────────────────────────────────
+component [main] as MAIN
+
+' ─── src/api/ ───────────────────────────────────────────────────────────────
+package "src/api" {
+    component [web_server] as WEB
+}
+
+' ─── src/wifi/ ──────────────────────────────────────────────────────────────
+package "src/wifi" {
+    component [wifi_manager] as WIFI
+}
+
+' ─── src/uart/ ──────────────────────────────────────────────────────────────
+package "src/uart" {
+    component [uart_wifi_config] as UART
+}
+
+' ─── src/network/ ───────────────────────────────────────────────────────────
+package "src/network" {
+    component [network_client] as NET
+}
+
+' ─── src/hal/ ───────────────────────────────────────────────────────────────
+package "src/hal" {
+    component [pin_config\n(NVS)] as PINCFG
+}
+
+' ─── src/drivers/ ───────────────────────────────────────────────────────────
+package "src/drivers" {
+    component [led_control]                   as LED
+    component [button_control]                as BTN
+    component [servo_control]                 as SERVO
+    component [advanced_motor\n(NEMA 17/23,\nnon-blocking)] as ADVMOTOR
+    component [motor_28byj48\n(28BYJ-48,\naktiv)]          as MOT28
+    component [device_registry\n(NVS)] as DEVREG
+}
+
+' ─── main → alle Module ─────────────────────────────────────────────────────
+MAIN --> WIFI
+MAIN --> WEB
+MAIN --> UART
+MAIN --> LED
+MAIN --> BTN
+MAIN --> SERVO
+MAIN --> ADVMOTOR
+MAIN --> MOT28
+MAIN --> PINCFG
+MAIN --> DEVREG
+
+' ─── Cross-module dependencies ──────────────────────────────────────────────
+UART --> WIFI    : wifi save / reset
+UART --> PINCFG  : read / write
+UART --> LED     : led color / brightness
+UART --> MOTOR   : motor move / stop
+UART --> BTN     : button enable/disable
+UART --> DEVREG  : registry list/add/remove/clear
+WIFI --> PINCFG  : SSID, Hostname, DeviceName
+WIFI --> LED     : Status-LED
+
+' ─── web_server → Hardware ──────────────────────────────────────────────────
+
+WEB --> LED
+WEB --> BTN
+WEB --> SERVO
+WEB --> ADVMOTOR
+WEB --> MOT28
+WEB --> PINCFG
+WEB --> DEVREG
+
+' ─── NVS access ──────────────────────────────────────────────────────────────
+PINCFG  --> [Preferences\n(NVS)] : "pin_config"\n"device_info"
+BTN     --> [Preferences\n(NVS)] : "button_cfg"
+DEVREG  --> [Preferences\n(NVS)] : "dev_registry"
+
+@enduml

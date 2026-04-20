@@ -1,0 +1,53 @@
+@startuml 07_State_WiFi
+skinparam linetype ortho
+skinparam BackgroundColor #FAFAFA
+skinparam ArrowColor #336699
+skinparam StateBackgroundColor #DDEEFF
+skinparam StateBorderColor #336699
+skinparam defaultTextAlignment center
+skinparam noteBackgroundColor #FFFDE7
+skinparam noteBorderColor #F9A825
+
+title State Diagram – WiFi Manager  (src/wifi/wifi_manager.cpp)\nSTA connection · AP fallback · retry loop
+
+[*] --> BOOT : Power-on / Reset
+
+state BOOT : getWiFiConfig(ssid,pass,host)\nWiFi.mode(WIFI_STA)\nWiFi.setHostname(host)
+
+BOOT --> STA_CONNECTING  : SSID not empty
+BOOT --> AP_ACTIVE       : SSID empty
+
+state STA_CONNECTING : WiFi.begin(ssid, pass)\n(Timeout 15 s)
+
+STA_CONNECTING --> STA_CONNECTED : WL_CONNECTED
+STA_CONNECTING --> AP_ACTIVE     : Timeout / Fehler
+
+state STA_CONNECTED : IP active\nsetColorByIndex(1) [Green]\nwifi_ap_mode_active = false
+
+STA_CONNECTED --> STA_RECONNECTING : WiFi.status() != WL_CONNECTED\n(detected in checkWiFiConnection())
+
+state STA_RECONNECTING : setColorByIndex(0) [Rot]\nconnectToWiFi(ssid, pass, 8s)
+
+STA_RECONNECTING --> STA_CONNECTED : WL_CONNECTED
+STA_RECONNECTING --> AP_ACTIVE     : Fehler
+
+state AP_ACTIVE : WiFi.mode(WIFI_AP)\nWiFi.softAP(deviceName)\nIP 192.168.4.1 (open)\nsetColorByIndex(2) [Yellow]\nwifi_ap_mode_active = true
+
+note right of AP_ACTIVE
+  deviceName = getDeviceInfo().deviceName
+  Default: "MotorModule"
+  Open network (no password)
+end note
+
+AP_ACTIVE --> AP_RETRY : every 60 s (AP_RETRY_INTERVAL_MS)\nand SSID not empty
+
+state AP_RETRY : WiFi.mode(WIFI_STA)\nconnectToWiFi(ssid, pass, 10s)
+
+AP_RETRY --> STA_CONNECTED : WL_CONNECTED
+AP_RETRY --> AP_ACTIVE     : Failed\n(WiFi.softAP restart)
+
+note left of AP_RETRY
+  Retry only if current_ssid[0] != '\\0'
+end note
+
+@enduml

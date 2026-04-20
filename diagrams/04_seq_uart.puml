@@ -1,0 +1,140 @@
+﻿@startuml 04_Sequenz_UART
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 5
+skinparam sequenceParticipantBorderColor #336699
+skinparam sequenceParticipantBackgroundColor #DDEEFF
+skinparam sequenceLifeLineBorderColor #336699
+skinparam BackgroundColor #FAFAFA
+skinparam ArrowColor #336699
+skinparam defaultTextAlignment center
+
+title Sequence Diagram – UART Command Processing\nExamples: "wifi ssid X" -> "wifi save"  .  "led color 1 ff0000"  .  "registry add button MyBtn pin=45"
+
+actor "User\n(Serial Monitor)" as USER
+participant "main.cpp\nloop()" as MAIN
+participant "uart_wifi_config\n(src/uart/)" as UART
+participant "pin_config\n(src/hal/)" as PIN
+participant "wifi_manager\n(src/wifi/)" as WIFI
+participant "led_control\n(src/drivers/)" as LED
+participant "device_registry\n(src/drivers/)" as DEVREG
+participant "Preferences\n(NVS)" as NVS
+participant "WiFi\n(Framework)" as WIFIFW
+
+== Example 1: Set and save WiFi SSID ==
+
+USER -> MAIN  : "wifi ssid Teekanne\n"
+MAIN -> UART  : handleUartWifiConfig()
+
+loop Serial.available()
+    UART -> UART : c = Serial.read()
+    UART -> UART : inputBuffer[inputPos++] = c
+end
+
+note over UART : '\n' received -> command complete
+
+UART -> UART   : processCommand("wifi ssid Teekanne")
+UART -> UART   : processWifiCommand("ssid Teekanne")
+UART -> UART   : strncpy(pendingSsid, "Teekanne")
+UART -> USER   : "OK SSID staged: \"Teekanne\"  ->  run 'wifi save' to apply"
+
+USER -> MAIN  : "wifi save\n"
+MAIN -> UART  : handleUartWifiConfig()
+UART -> UART  : processWifiCommand("save")
+UART -> PIN   : setWiFiConfig("Teekanne", "", "MotorModule")
+PIN  -> NVS   : preferences.putString("wifi_ssid", "Teekanne")
+UART -> WIFIFW : WiFi.disconnect(true)
+UART -> WIFI   : setupWiFi()
+WIFI -> WIFIFW : WiFi.begin("Teekanne", "")
+
+alt Connection successful
+    WIFIFW --> WIFI : WL_CONNECTED
+    WIFI -> USER    : "[WiFi] Connected. IP: ..."
+else Connection failed
+    WIFI -> WIFI    : startAccessPoint()
+    WIFI --> UART   : AP mode active
+end
+
+== Example 2: Set LED color via UART ==
+
+USER -> MAIN  : "led color 1 ff0000\n"
+MAIN -> UART  : handleUartWifiConfig()
+UART -> UART  : processCommand("led color 1 ff0000")
+UART -> UART  : processLedCommand("color 1 ff0000")
+UART -> LED   : setColorRGBForLed(1, 255, 0, 0)
+LED  --> UART : ok
+UART -> USER  : "✓ LED 1 → #FF0000"
+
+== Example 3: Device Registry – add button ==
+
+USER -> MAIN   : "registry add button MyBtn pin=45 pullup=1\n"
+MAIN -> UART   : handleUartWifiConfig()
+UART -> UART   : processRegistryCommand("add button MyBtn pin=45 pullup=1")
+UART -> UART   : deviceTypeFromString("button") → DEV_BUTTON
+UART -> UART   : build configJson: {\"pin\":45,\"pullup\":1}
+UART -> DEVREG : addDevice(DEV_BUTTON, "MyBtn", "{\"pin\":45,\"pullup\":1}")
+DEVREG -> NVS  : prefs.putString("e0", JSON)
+DEVREG --> UART : newId = 1
+UART -> USER   : "OK Device created: id=1 type=button name=MyBtn"
+UART -> USER   : "  -> Reboot to activate hardware."
+
+== Example 4: Clear registry ==
+
+USER -> MAIN   : "registry clear\n"
+MAIN -> UART   : handleUartWifiConfig()
+UART -> DEVREG : clearDeviceRegistry()
+DEVREG -> NVS  : prefs.remove("e0")..prefs.remove("eN")
+DEVREG -> NVS  : prefs.putUInt("nextid", 1)
+DEVREG --> UART : ok
+UART -> USER   : "OK All registry entries cleared."
+
+@enduml
+
+
+== Characters are read ==
+
+USER -> MAIN  : Characters 'w','i','f','i',' ','s','s','i','d',' ','T','e','e','k','a','n','n','e','\n'
+MAIN -> UART  : handleUartWifiConfig()
+
+loop Serial.available()
+    UART -> UART : c = Serial.read()
+    UART -> UART : inputBuffer[inputPos++] = c
+end
+
+note over UART : '\n' received -> command complete
+
+UART -> UART   : processCommand("wifi ssid Teekanne")
+UART -> UART   : processWifiCommand("ssid Teekanne")
+UART -> UART   : strncpy(pendingSsid, "Teekanne")
+UART -> USER   : "OK SSID staged: \"Teekanne\"  ->  'wifi save' to apply"
+
+USER -> MAIN  : "wifi save\n"
+MAIN -> UART  : handleUartWifiConfig()
+UART -> UART  : processCommand("wifi save")
+UART -> UART  : processWifiCommand("save")
+UART -> PIN   : setWiFiConfig("Teekanne", "", "MotorModule")
+PIN  -> NVS   : preferences.putString("wifi_ssid", "Teekanne")
+NVS  --> PIN  : stored
+PIN  --> UART : ok
+
+UART -> UART  : clear pendingSsid/pass/host
+UART -> USER  : "Wi-Fi config saved"
+UART -> USER  : "   Reconnecting..."
+
+UART -> WIFIFW : WiFi.disconnect(true)
+UART -> UART   : delay(300)
+UART -> WIFI   : setupWiFi()
+
+WIFI -> PIN    : getWiFiConfig(ssid,pass,host)
+WIFI -> WIFIFW : WiFi.begin("Teekanne", "")
+
+alt Connection successful (< 15 s)
+    WIFIFW --> WIFI : WL_CONNECTED
+    WIFI -> USER    : "[WiFi] Connected. IP: ..."
+    WIFI --> UART   : STA mode active
+else Connection failed
+    WIFI -> WIFI    : startAccessPoint()
+    WIFI -> WIFIFW  : WiFi.softAP(deviceName)
+    WIFI --> UART   : AP mode active
+end
+
+@enduml

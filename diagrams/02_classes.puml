@@ -1,0 +1,351 @@
+@startuml 02_ClassDiagram
+skinparam linetype ortho
+skinparam classBackgroundColor #DDEEFF
+skinparam classBorderColor #336699
+skinparam ArrowColor #336699
+skinparam BackgroundColor #FAFAFA
+skinparam defaultTextAlignment left
+
+title Class Diagram – Structs, static modules and their interfaces
+
+' ─── Data structures ─────────────────────────────────────────────────────────
+class PinConfiguration <<struct>> {
+    +int motor_28byj48_pin1
+    +int motor_28byj48_pin2
+    +int motor_28byj48_pin3
+    +int motor_28byj48_pin4
+    +int nema23_step_pins[MAX_ADVANCED_MOTORS]
+    +int nema23_dir_pins[MAX_ADVANCED_MOTORS]
+    +int nema23_enable_pins[MAX_ADVANCED_MOTORS]
+    +int servo_pins[MAX_SERVOS]
+    +int led_pins[MAX_LED_OUTPUTS]
+    +int led_counts[MAX_LED_OUTPUTS]
+    +int button_pin
+    +char wifi_ssid[64]
+    +char wifi_password[64]
+    +char wifi_hostname[32]
+    +bool isValid
+}
+
+class DeviceInfo <<struct>> {
+    +String deviceName
+    +String deviceNumber
+    +String configuration
+    +String description
+}
+
+class DeviceEntry <<struct>> {
+    +bool active
+    +uint16_t id
+    +DeviceType type
+    +char name[32]
+    +char config[256]
+}
+
+note right of DeviceEntry
+  DeviceType: button=0, led=1,
+  motor=2, servo=3, stepper=4
+end note
+
+' ─── pin_config module (src/hal/) ────────────────────────────────────────────
+class pin_config <<module\nsrc/hal/>> {
+    --global--
+    +PinConfiguration currentPinConfig
+    --functions--
+    +void initPinConfig()
+    +void loadPinConfig()
+    +void savePinConfig()
+    +void resetPinConfigToDefaults()
+    +void applyPinConfig()
+    +void setPinConfig(config)
+    +PinConfiguration getPinConfig()
+    +void set28BYJ48Pins(p1,p2,p3,p4)
+    +void setNEMA23PinsById(id,step,dir,en)
+    +void setServoPinById(id, pin)
+    +void setLedPinById(id, pin)
+    +void setLedCountById(id, count)
+    +void setButtonPin(pin)
+    +void setWiFiConfig(ssid,pass,host)
+    +void getWiFiConfig(ssid,pass,host)
+    --device info--
+    +void initDeviceInfo()
+    +DeviceInfo getDeviceInfo()
+    +void setDeviceName(name)
+    +void setDeviceNumber(num)
+    +void setConfiguration(cfg)
+    +void setDescription(desc)
+}
+
+' ─── device_registry module (src/drivers/) ───────────────────────────────────
+class device_registry <<module\nsrc/drivers/>> {
+    --static state--
+    -DeviceEntry s_registry[32]
+    -uint16_t s_nextId
+    -Preferences s_prefs
+    --functions--
+    +void initDeviceRegistry()
+    +int  getDeviceCount()
+    +const DeviceEntry* getDeviceById(id)
+    +String getDeviceListJson()
+    +int  addDevice(type, name, configJson)
+    +bool removeDevice(id)
+    +void clearDeviceRegistry()
+    +DeviceType deviceTypeFromString(s)
+    +const char* deviceTypeToString(t)
+    +void bootInitRegisteredDevices()
+}
+
+' ─── button_control module (src/drivers/) ────────────────────────────────────
+class button_control <<module\nsrc/drivers/>> {
+    --static state--
+    -volatile bool isr_triggered
+    -volatile uint32_t isr_time_ms
+    -bool buttonState
+    -bool buttonEnabled
+    -const uint32_t DEBOUNCE_MS = 25
+    -Preferences buttonPrefs
+    --ISR--
+    -{static} IRAM_ATTR buttonISR()
+    --functions--
+    +void setupButton()
+    +bool getButtonState()
+    +void setButtonEnabled(bool enabled)
+    +bool isButtonEnabled()
+}
+
+' ─── wifi_manager module (src/wifi/) ─────────────────────────────────────────
+class wifi_manager <<module\nsrc/wifi/>> {
+    --global--
+    +bool wifi_ap_mode_active
+    -char current_ssid[64]
+    -char current_password[64]
+    -char current_hostname[32]
+    -unsigned long lastApRetryMs
+    -const ulong AP_RETRY_INTERVAL_MS = 60000
+    -const ulong WIFI_CONNECT_TIMEOUT_MS = 15000
+    --functions--
+    +void setupWiFi()
+    +void startAccessPoint()
+    +void checkWiFiConnection()
+    +void printNetworkStatus()
+    -{static} bool connectToWiFi(ssid,pass,timeout)
+}
+
+' ─── uart_wifi_config module (src/uart/) ─────────────────────────────────────
+class uart_wifi_config <<module\nsrc/uart/>> {
+    --static state--
+    -char inputBuffer[256]
+    -int inputPos
+    -char pendingSsid[64]
+    -char pendingPass[64]
+    -char pendingHost[32]
+    --functions--
+    +void setupUartWifiConfig()
+    +void handleUartWifiConfig()
+    -{static} void processCommand(line)
+    --command groups--
+    -{static} void processWifiCommand(cmd)
+    -{static} void processDeviceCommand(cmd)
+    -{static} void processMotorCommand(cmd)
+    -{static} void processLedCommand(cmd)
+    -{static} void processButtonCommand(cmd)
+    -{static} void processRegistryCommand(cmd)
+    -{static} void printHelp()
+}
+
+' ─── web_server module (src/api/) ────────────────────────────────────────────
+class web_server <<module\nsrc/api/>> {
+    --global--
+    +WebServer server(80)
+    --setup--
+    +void setupWebServer()
+    +void handleWebServerRequests()
+    --LED / Color--
+    -void handleColorChange()
+    -void handleHexColorChange()
+    -void handleBrightness()
+    -void handleSetLedPin()
+    --Motor--
+    -void handleMotorControl()
+    -void handleAdvancedMotorControl()
+    -void handleAdvancedMotorStatus()
+    -void handleAdvancedMotorStop()
+    -void handleAdvancedMotorHome()
+    -void handleAdvancedMotorJog()
+    -void handleAdvancedMotorCalibrate()
+    -void handle28BYJ48MotorControl()
+    -void handle28BYJ48MotorStatus()
+    --Servo--
+    -void handleServoControl()
+    -void handleSetServoPin()
+    --Button--
+    -void handleGetButtonState()
+    -void handleSetButtonEnabled()
+    -void handleSetButtonPin()
+    --PinConfig--
+    -void handlePinConfig()
+    -void handleSavePinConfig()
+    -void handleResetPinConfig()
+    -void handleGetPinConfig()
+    --DeviceInfo--
+    -void handleGetDeviceInfo()
+    -void handleSetDeviceInfo()
+    --Device Registry--
+    -void handleDeviceList()
+    -void handleDeviceAdd()
+    -void handleDeviceRemove()
+    -void handleDeviceInfo()
+    -void handleDeviceClear()
+    --System--
+    -void handleReboot()
+}
+
+' ─── Beziehungen ──────────────────────────────────────────────────────────────
+pin_config       ..> PinConfiguration  : creates / manages
+pin_config       ..> DeviceInfo        : creates / manages
+device_registry  ..> DeviceEntry       : manages[]
+
+wifi_manager     ..> pin_config        : getWiFiConfig()\ngetDeviceInfo()
+uart_wifi_config ..> pin_config        : getWiFiConfig()\nsetWiFiConfig()\nsetDeviceName()
+uart_wifi_config ..> wifi_manager      : setupWiFi()\nwifi_ap_mode_active
+uart_wifi_config ..> device_registry   : addDevice()\nremoveDevice()\nclearDeviceRegistry()
+
+web_server ..> button_control  : getButtonState()\nsetButtonEnabled()
+web_server ..> pin_config      : getPinConfig()\nsetPinConfig()\ngetDeviceInfo()
+web_server ..> device_registry : addDevice()\nremoveDevice()\nclearDeviceRegistry()\ngetDeviceListJson()
+
+@enduml
+
+
+' ─── pin_config Modul ─────────────────────────────────────────────────────────
+class pin_config <<module>> {
+    --global--
+    +PinConfiguration currentPinConfig
+    --functions--
+    +void initPinConfig()
+    +void loadPinConfig()
+    +void savePinConfig()
+    +void resetPinConfigToDefaults()
+    +void applyPinConfig()
+    +void setPinConfig(config)
+    +PinConfiguration getPinConfig()
+    +void set28BYJ48Pins(p1,p2,p3,p4)
+    +void setNEMA23PinsById(id,step,dir,en)
+    +void setServoPinById(id, pin)
+    +void setLedPinById(id, pin)
+    +void setButtonPin(pin)
+    +void setWiFiConfig(ssid,pass,host)
+    +void getWiFiConfig(ssid,pass,host)
+    --device info--
+    +void initDeviceInfo()
+    +DeviceInfo getDeviceInfo()
+    +void setDeviceName(name)
+    +void setDeviceNumber(num)
+    +void setConfiguration(cfg)
+    +void setDescription(desc)
+}
+
+' ─── button_control Modul ─────────────────────────────────────────────────────
+class button_control <<module>> {
+    --static state--
+    -volatile bool isr_triggered
+    -volatile uint32_t isr_time_ms
+    -bool buttonState
+    -bool buttonEnabled
+    -const uint32_t DEBOUNCE_MS = 25
+    -Preferences buttonPrefs
+    --ISR--
+    -{static} IRAM_ATTR buttonISR()
+    --functions--
+    +void setupButton()
+    +bool getButtonState()
+    +void setButtonEnabled(bool enabled)
+    +bool isButtonEnabled()
+}
+
+' ─── wifi_manager Modul ───────────────────────────────────────────────────────
+class wifi_manager <<module>> {
+    --global--
+    +bool wifi_ap_mode_active
+    -char current_ssid[64]
+    -char current_password[64]
+    -char current_hostname[32]
+    -unsigned long lastApRetryMs
+    -const ulong AP_RETRY_INTERVAL_MS = 60000
+    -const ulong WIFI_CONNECT_TIMEOUT_MS = 15000
+    --functions--
+    +void setupWiFi()
+    +void startAccessPoint()
+    +void checkWiFiConnection()
+    +void printNetworkStatus()
+    -{static} bool connectToWiFi(ssid,pass,timeout)
+}
+
+' ─── uart_wifi_config Modul ───────────────────────────────────────────────────
+class uart_wifi_config <<module>> {
+    --static state--
+    -char inputBuffer[256]
+    -int inputPos
+    -char pendingSsid[64]
+    -char pendingPass[64]
+    -char pendingHost[32]
+    -char pendingDeviceName[32]
+    --functions--
+    +void setupUartWifiConfig()
+    +void handleUartWifiConfig()
+    -{static} void processCommand(line)
+    -{static} void processWifiCommand(cmd)
+    -{static} void processDeviceCommand(cmd)
+    -{static} void printHelp()
+    -{static} void printPendingChanges()
+}
+
+' ─── web_server Modul ─────────────────────────────────────────────────────────
+class web_server <<module>> {
+    --global--
+    +WebServer server(80)
+    --setup--
+    +void setupWebServer()
+    +void handleWebServerRequests()
+    --handler--
+    -void handleRoot()
+    -void handleColorChange()
+    -void handleHexColorChange()
+    -void handleServoControl()
+    -void handleMotorControl()
+    -void handleGetButtonState()
+    -void handleSetButtonEnabled()
+    -void handleBrightness()
+    -void handleSetHomingMode()
+    -void handlePassButton()
+    -void handleAdvancedMotorControl()
+    -void handleAdvancedMotorStatus()
+    -void handleAdvancedMotorStop()
+    -void handleAdvancedMotorHome()
+    -void handleAdvancedMotorJog()
+    -void handleAdvancedMotorCalibrate()
+    -void handle28BYJ48MotorControl()
+    -void handle28BYJ48MotorStatus()
+    -void handlePinConfig()
+    -void handleSavePinConfig()
+    -void handleResetPinConfig()
+    -void handleGetPinConfig()
+    -void handleSetServoPin()
+    -void handleSetLedPin()
+    -void handleSetButtonPin()
+    -void handleGetDeviceInfo()
+    -void handleSetDeviceInfo()
+}
+
+' ─── Beziehungen ──────────────────────────────────────────────────────────────
+pin_config ..> PinConfiguration : creates / manages
+pin_config ..> DeviceInfo       : creates / manages
+
+wifi_manager     ..> pin_config      : getWiFiConfig()\ngetDeviceInfo()
+uart_wifi_config ..> pin_config      : getWiFiConfig()\nsetWiFiConfig()\nsetDeviceName()
+uart_wifi_config ..> wifi_manager    : setupWiFi()\nwifi_ap_mode_active
+
+web_server ..> button_control  : getButtonState()\nsetButtonEnabled()\nisButtonEnabled()
+web_server ..> pin_config      : getPinConfig()\nsetPinConfig()\ngetDeviceInfo()
+
+@enduml

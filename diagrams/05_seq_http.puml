@@ -1,0 +1,127 @@
+@startuml 05_Sequenz_HTTP
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 5
+skinparam sequenceParticipantBorderColor #336699
+skinparam sequenceParticipantBackgroundColor #DDEEFF
+skinparam sequenceLifeLineBorderColor #336699
+skinparam BackgroundColor #FAFAFA
+skinparam ArrowColor #336699
+skinparam defaultTextAlignment center
+
+title Sequenzdiagramm – HTTP-Request\nBeispiele: GET /hexcolor  ·  GET /setButtonEnabled  ·  POST /buttons  ·  GET /devices/clear
+
+actor "HTTP Client\n(Browser / API)" as CLIENT
+participant "main.cpp\nloop()" as MAIN
+participant "web_server\n(src/api/ Port 80)" as WEB
+participant "led_control\n(src/drivers/)" as LED
+participant "button_control\n(src/drivers/)" as BTN
+participant "device_registry\n(src/drivers/)" as DEVREG
+participant "Preferences\n(NVS)" as NVS
+
+== Beispiel 1: LED-Farbe setzen ==
+
+CLIENT -> MAIN  : GET /hexcolor?hex=FF0000&ledId=1
+
+MAIN -> WEB     : handleWebServerRequests()
+note right WEB  : server.handleClient()
+WEB  -> WEB     : Route "/hexcolor" → handleHexColorChange()
+WEB  -> WEB     : hex = "FF0000", ledId = 1
+WEB  -> LED     : setColorRGBForLed(1, 255, 0, 0)
+LED  --> WEB    : Farbe gesetzt
+WEB  -> CLIENT  : HTTP 200  "LED output 1 color changed to #FF0000"
+
+== Beispiel 2: Button deaktivieren ==
+
+CLIENT -> MAIN  : GET /setButtonEnabled?enabled=0
+
+MAIN -> WEB     : handleWebServerRequests()
+WEB  -> WEB     : Route "/setButtonEnabled" → handleSetButtonEnabled()
+WEB  -> BTN     : setButtonEnabled(false)
+BTN  -> BTN     : detachInterrupt(BUTTON_PIN)
+BTN  -> BTN     : buttonPrefs.putBool("enabled", false)
+BTN  --> WEB    : ok
+WEB  -> CLIENT  : HTTP 200  {"enabled":false}
+
+== Example 3: Add device via registry (POST /buttons) ==
+
+CLIENT -> MAIN  : POST /buttons\nBody: {"name":"MyBtn","pin":45,"pullup":true}
+
+MAIN -> WEB     : handleWebServerRequests()
+WEB  -> WEB     : Route "/buttons" → handleDeviceAdd()
+WEB  -> WEB     : pathType = DEV_BUTTON (aus URI)
+WEB  -> WEB     : name = "MyBtn"
+WEB  -> WEB     : configJson = {"pin":45,"pullup":true}
+WEB  -> DEVREG  : addDevice(DEV_BUTTON, "MyBtn", configJson)
+DEVREG -> NVS   : prefs.putString("e0", JSON)
+DEVREG --> WEB  : newId = 1
+WEB  -> CLIENT  : HTTP 201  {"ok":true,"id":1,"type":"button",\n"name":"MyBtn","note":"Hardware active after next reboot"}
+
+== Example 4: Clear registry ==
+
+CLIENT -> MAIN  : GET /devices/clear
+
+MAIN -> WEB     : handleWebServerRequests()
+WEB  -> WEB     : Route "/devices/clear" → handleDeviceClear()
+WEB  -> DEVREG  : clearDeviceRegistry()
+DEVREG -> NVS   : prefs.remove("e0")..prefs.remove("eN")
+DEVREG --> WEB  : ok
+WEB  -> CLIENT  : HTTP 200  {"ok":true,"msg":"Registry cleared"}
+
+== Example 5: Reboot ==
+
+CLIENT -> MAIN  : GET /reboot
+
+MAIN -> WEB     : handleWebServerRequests()
+WEB  -> WEB     : Route "/reboot" → handleReboot()
+WEB  -> CLIENT  : HTTP 200  {"ok":true,"msg":"Rebooting..."}
+WEB  -> WEB     : delay(500)
+WEB  -> WEB     : ESP.restart()
+
+@enduml
+
+
+== Beispiel 1: LED-Farbe setzen ==
+
+CLIENT -> MAIN  : GET /hexcolor?hex=FF0000&ledId=1
+
+MAIN -> WEB     : handleWebServerRequests()
+note right WEB  : server.handleClient()
+WEB  -> WEB     : Route "/hexcolor" → handleHexColorChange()
+WEB  -> WEB     : hex = server.arg("hex")  → "FF0000"\nledId = server.arg("ledId").toInt() → 1
+WEB  -> LED     : setHexColor(1, "FF0000")
+LED  --> WEB    : Farbe gesetzt
+WEB  -> CLIENT  : HTTP 200  "LED output 1 color changed to #FF0000"
+
+== Beispiel 2: Button deaktivieren ==
+
+CLIENT -> MAIN  : GET /setButtonEnabled?enabled=0
+
+MAIN -> WEB     : handleWebServerRequests()
+WEB  -> WEB     : Route "/setButtonEnabled" → handleSetButtonEnabled()
+WEB  -> WEB     : enable = (server.arg("enabled") == "1") → false
+
+WEB  -> BTN     : setButtonEnabled(false)
+BTN  -> BTN     : detachInterrupt(BUTTON_PIN)
+BTN  -> BTN     : buttonEnabled = false
+BTN  -> BTN     : buttonPrefs.putBool("enabled", false)
+BTN  --> WEB    : ok
+
+WEB  -> CLIENT  : HTTP 200  {"enabled":false}
+
+== Beispiel 3: Button-Status abfragen ==
+
+CLIENT -> MAIN  : GET /getButtonState
+
+MAIN -> WEB     : handleWebServerRequests()
+WEB  -> WEB     : Route "/getButtonState" → handleGetButtonState()
+
+WEB  -> BTN     : getButtonState()
+note right BTN  : buttonEnabled=false -> returns false\n(no ISR processing)
+BTN  --> WEB    : false (not pressed / disabled)
+
+WEB  -> BTN     : isButtonEnabled()
+BTN  --> WEB    : false
+
+WEB  -> CLIENT  : HTTP 200  {"pressed":false,"enabled":false}
+
+@enduml

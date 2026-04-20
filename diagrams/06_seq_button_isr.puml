@@ -1,0 +1,75 @@
+@startuml 06_Sequenz_ButtonISR
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 5
+skinparam sequenceParticipantBorderColor #336699
+skinparam sequenceParticipantBackgroundColor #DDEEFF
+skinparam sequenceLifeLineBorderColor #336699
+skinparam BackgroundColor #FAFAFA
+skinparam ArrowColor #336699
+skinparam defaultTextAlignment center
+
+title Sequence Diagram – Button Interrupt\nISR -> Debounce -> State change  (src/drivers/button_control.cpp)
+
+participant "Hardware\nGPIO 45" as HW
+participant "buttonISR()\n[IRAM_ATTR]" as ISR
+participant "button_control\nstatic vars" as STATE
+participant "main.cpp\nloop()" as MAIN
+participant "getButtonState()" as GBS
+
+== Button pressed (CHANGE edge) ==
+
+HW   -> ISR   : Hardware-Interrupt (FALLING)
+activate ISR
+ISR  -> STATE : isr_triggered = true\nisr_time_ms = millis()
+deactivate ISR
+
+note over HW,STATE : CPU returns immediately (ISR is short)\n-> no blocking
+
+== Bounce phase (< 25 ms) – not evaluated ==
+
+HW   -> ISR   : possible bounce (CHANGE)
+activate ISR
+ISR  -> STATE : isr_triggered = true (bleibt)\nisr_time_ms = millis() (aktualisiert)
+deactivate ISR
+
+== loop() evaluates (> 25 ms after last ISR) ==
+
+MAIN -> GBS   : getButtonState()
+activate GBS
+GBS  -> STATE : buttonEnabled?
+STATE --> GBS : true
+
+GBS  -> STATE : isr_triggered?
+STATE --> GBS : true
+
+GBS  -> GBS   : (millis() - isr_time_ms) >= 25ms?
+GBS  -> GBS   : ja → weiter
+
+GBS  -> STATE : isr_triggered = false
+GBS  -> HW    : digitalRead(BUTTON_PIN)
+HW   --> GBS  : LOW (pressed)
+
+GBS  -> GBS   : LOW != buttonState(HIGH) ?
+GBS  -> STATE : buttonState = LOW
+GBS  -> GBS   : Serial.printf("[Button] State: PRESSED")
+
+GBS  --> MAIN : return true  (pressed)
+deactivate GBS
+
+== Button released ==
+
+HW   -> ISR   : Hardware-Interrupt (RISING)
+activate ISR
+ISR  -> STATE : isr_triggered = true\nisr_time_ms = millis()
+deactivate ISR
+
+MAIN -> GBS   : getButtonState()  [nach 25ms]
+activate GBS
+GBS  -> HW    : digitalRead(BUTTON_PIN)
+HW   --> GBS  : HIGH (losgelassen)
+GBS  -> STATE : buttonState = HIGH
+GBS  -> GBS   : Serial.printf("[Button] State: released")
+GBS  --> MAIN : return false
+deactivate GBS
+
+@enduml

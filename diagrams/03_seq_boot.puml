@@ -1,0 +1,97 @@
+﻿@startuml 03_Sequenz_Boot
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 5
+skinparam sequenceParticipantBorderColor #336699
+skinparam sequenceParticipantBackgroundColor #DDEEFF
+skinparam sequenceLifeLineBorderColor #336699
+skinparam BackgroundColor #FAFAFA
+skinparam ArrowColor #336699
+skinparam defaultTextAlignment center
+
+title Sequenzdiagramm – Boot / setup()
+
+participant "main.cpp" as MAIN
+participant "pin_config\n(src/hal/)" as PIN
+participant "device_registry\n(src/drivers/)" as DEVREG
+participant "led_control\n(src/drivers/)" as LED
+participant "advanced_motor\n(NEMA 17/23, src/drivers/)" as ADV
+participant "motor_28byj48\n(28BYJ-48, src/drivers/)" as M28
+participant "button_control\n(src/drivers/)" as BTN
+participant "servo_control\n(src/drivers/)" as SRV
+participant "wifi_manager\n(src/wifi/)" as WIFI
+participant "web_server\n(src/api/)" as WEB
+participant "uart_wifi_config\n(src/uart/)" as UART
+participant "Preferences\n(NVS)" as NVS
+participant "WiFi\n(Framework)" as WIFIFW
+
+MAIN -> MAIN      : Serial.begin(115200)
+MAIN -> MAIN      : delay(1000)
+
+MAIN -> PIN       : initPinConfig()
+PIN  -> NVS       : preferences.begin("pin_config")
+NVS  --> PIN      : stored pins or defaults
+PIN  --> MAIN     : currentPinConfig loaded
+
+MAIN -> PIN       : initDeviceInfo()
+PIN  -> NVS       : preferences.begin("device_info")
+NVS  --> PIN      : deviceName (default "MotorModule")
+PIN  --> MAIN     : DeviceInfo loaded
+
+MAIN -> DEVREG    : initDeviceRegistry()
+DEVREG -> NVS     : prefs.begin("dev_registry")
+NVS  --> DEVREG   : Eintraege e0..e31 laden
+DEVREG -> DEVREG  : bootInitRegisteredDevices()
+note right DEVREG : Each active entry:\n. button -> pinMode()\n. motor -> setup28BYJ48MotorWithPins()\n. servo/led -> config only
+DEVREG --> MAIN   : Registry aktiv
+
+MAIN -> LED       : setupLEDs()
+LED  --> MAIN     : NeoPixel initialisiert
+
+MAIN -> ADV       : setupAdvancedMotor()
+ADV  --> MAIN     : Advanced stepper bereit (NEMA 17/23)
+
+MAIN -> M28       : setup28BYJ48Motor()
+M28  --> MAIN     : 28BYJ-48 bereit
+
+MAIN -> BTN       : setupButton()
+BTN  -> NVS       : buttonPrefs.begin("button_cfg")
+NVS  --> BTN      : enabled=true (default)
+BTN  -> BTN       : pinMode(BUTTON_PIN, INPUT)
+BTN  -> BTN       : attachInterrupt(CHANGE)
+BTN  --> MAIN     : Interrupt aktiv
+
+MAIN -> SRV       : setupServo()
+SRV  --> MAIN     : Servo-Channels konfiguriert
+
+MAIN -> WIFI      : setupWiFi()
+WIFI -> PIN       : getWiFiConfig(ssid,pass,host)
+WIFI -> WIFIFW    : WiFi.mode(WIFI_STA)
+WIFI -> WIFIFW    : WiFi.setHostname(host)
+
+alt SSID set and connection successful
+    WIFI -> WIFIFW  : WiFi.begin(ssid, pass)
+    WIFIFW --> WIFI : WL_CONNECTED
+    WIFI -> LED     : setColorByIndex(1)  [Gruen]
+    WIFI --> MAIN   : STA verbunden
+else kein SSID oder Timeout
+    WIFI -> WIFI    : startAccessPoint()
+    WIFI -> PIN     : getDeviceInfo()
+    WIFI -> WIFIFW  : WiFi.mode(WIFI_AP)
+    WIFI -> WIFIFW  : WiFi.softAP(deviceName)
+    WIFI -> LED     : setColorByIndex(2)  [Gelb]
+    WIFI --> MAIN   : AP aktiv (192.168.4.1)
+end
+
+MAIN -> WEB       : setupWebServer()
+WEB  -> WEB       : server.on(alle Routen registrieren)
+note right WEB    : /devices, /devices/clear, /reboot\n/buttons, /leds, /motors, /servos, /steppers\n/hexcolor, /setLedPin, /getPinConfig, ...
+WEB  -> WEB       : server.begin()
+WEB  --> MAIN     : WebServer Port 80 aktiv
+
+MAIN -> UART      : setupUartWifiConfig()
+UART -> UART      : printHelp() via Serial
+UART --> MAIN     : bereit
+
+MAIN -> MAIN      : Serial.println("[BOOT] setup complete")
+
+@enduml
