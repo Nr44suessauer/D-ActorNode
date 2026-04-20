@@ -310,7 +310,7 @@ PinConfiguration getPinConfig() {
  * Prints the pin configuration to the serial console
  */
 void printPinConfig() {
-    Serial.println("\n\ud83d\udccc Current pin configuration:");
+    Serial.println("\n[PIN CONFIG] Current pin configuration:");
     Serial.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     Serial.printf("28BYJ-48 Motor: IN1=%d, IN2=%d, IN3=%d, IN4=%d\n", 
                   currentPinConfig.motor_28byj48_pin1,
