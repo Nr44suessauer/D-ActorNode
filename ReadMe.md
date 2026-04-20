@@ -1,7 +1,7 @@
 # D-ActorNode
 
 **Author:** Marc Nauendorf  
-**License:** [CC BY-NC 4.0](LICENSE) — Free to use and modify, but **not for commercial purposes**.
+**License:** [MIT](LICENSE) — Free to use, modify, and distribute, including for commercial purposes.
 
 ## Project Overview
 
