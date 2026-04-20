@@ -22,7 +22,7 @@ participant "WiFi\n(Framework)" as WIFIFW
 
 == Example 1: Set and save WiFi SSID ==
 
-USER -> MAIN  : "wifi ssid Teekanne\n"
+USER -> MAIN  : "wifi ssid MyNetwork\n"
 MAIN -> UART  : handleUartWifiConfig()
 
 loop Serial.available()
@@ -32,19 +32,19 @@ end
 
 note over UART : '\n' received -> command complete
 
-UART -> UART   : processCommand("wifi ssid Teekanne")
-UART -> UART   : processWifiCommand("ssid Teekanne")
-UART -> UART   : strncpy(pendingSsid, "Teekanne")
-UART -> USER   : "OK SSID staged: \"Teekanne\"  ->  run 'wifi save' to apply"
+UART -> UART   : processCommand("wifi ssid MyNetwork")
+UART -> UART   : processWifiCommand("ssid MyNetwork")
+UART -> UART   : strncpy(pendingSsid, "MyNetwork")
+UART -> USER   : "OK SSID staged: \"MyNetwork\"  ->  run 'wifi save' to apply"
 
 USER -> MAIN  : "wifi save\n"
 MAIN -> UART  : handleUartWifiConfig()
 UART -> UART  : processWifiCommand("save")
-UART -> PIN   : setWiFiConfig("Teekanne", "", "MotorModule")
-PIN  -> NVS   : preferences.putString("wifi_ssid", "Teekanne")
+UART -> PIN   : setWiFiConfig("MyNetwork", "", "MotorModule")
+PIN  -> NVS   : preferences.putString("wifi_ssid", "MyNetwork")
 UART -> WIFIFW : WiFi.disconnect(true)
 UART -> WIFI   : setupWiFi()
-WIFI -> WIFIFW : WiFi.begin("Teekanne", "")
+WIFI -> WIFIFW : WiFi.begin("MyNetwork", "")
 
 alt Connection successful
     WIFIFW --> WIFI : WL_CONNECTED
@@ -92,7 +92,7 @@ UART -> USER   : "OK All registry entries cleared."
 
 == Characters are read ==
 
-USER -> MAIN  : Characters 'w','i','f','i',' ','s','s','i','d',' ','T','e','e','k','a','n','n','e','\n'
+USER -> MAIN  : Characters 'w','i','f','i',' ','s','s','i','d',' ','M','y','N','e','t','w','o','r','k','\n'
 MAIN -> UART  : handleUartWifiConfig()
 
 loop Serial.available()
@@ -102,17 +102,17 @@ end
 
 note over UART : '\n' received -> command complete
 
-UART -> UART   : processCommand("wifi ssid Teekanne")
-UART -> UART   : processWifiCommand("ssid Teekanne")
-UART -> UART   : strncpy(pendingSsid, "Teekanne")
-UART -> USER   : "OK SSID staged: \"Teekanne\"  ->  'wifi save' to apply"
+UART -> UART   : processCommand("wifi ssid MyNetwork")
+UART -> UART   : processWifiCommand("ssid MyNetwork")
+UART -> UART   : strncpy(pendingSsid, "MyNetwork")
+UART -> USER   : "OK SSID staged: \"MyNetwork\"  ->  'wifi save' to apply"
 
 USER -> MAIN  : "wifi save\n"
 MAIN -> UART  : handleUartWifiConfig()
 UART -> UART  : processCommand("wifi save")
 UART -> UART  : processWifiCommand("save")
-UART -> PIN   : setWiFiConfig("Teekanne", "", "MotorModule")
-PIN  -> NVS   : preferences.putString("wifi_ssid", "Teekanne")
+UART -> PIN   : setWiFiConfig("MyNetwork", "", "MotorModule")
+PIN  -> NVS   : preferences.putString("wifi_ssid", "MyNetwork")
 NVS  --> PIN  : stored
 PIN  --> UART : ok
 
@@ -125,7 +125,7 @@ UART -> UART   : delay(300)
 UART -> WIFI   : setupWiFi()
 
 WIFI -> PIN    : getWiFiConfig(ssid,pass,host)
-WIFI -> WIFIFW : WiFi.begin("Teekanne", "")
+WIFI -> WIFIFW : WiFi.begin("MyNetwork", "")
 
 alt Connection successful (< 15 s)
     WIFIFW --> WIFI : WL_CONNECTED

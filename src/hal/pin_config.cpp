@@ -135,10 +135,10 @@ void loadPinConfig() {
         
         // If WiFi data is empty, use default values
         if (strlen(currentPinConfig.wifi_ssid) == 0) {
-            strcpy(currentPinConfig.wifi_ssid, "Teekanne");
+            strcpy(currentPinConfig.wifi_ssid, "MyNetwork");
         }
         if (strlen(currentPinConfig.wifi_password) == 0) {
-            strcpy(currentPinConfig.wifi_password, "49127983361694305550");
+            strcpy(currentPinConfig.wifi_password, "MyPassword");
         }
         if (strlen(currentPinConfig.wifi_hostname) == 0) {
             strcpy(currentPinConfig.wifi_hostname, "ESP32-IScan");
@@ -244,8 +244,8 @@ void resetPinConfigToDefaults() {
     currentPinConfig.button_pin = BUTTON_PIN;
     
     // WiFi Configuration - Defaults
-    strncpy(currentPinConfig.wifi_ssid, "Teekanne", sizeof(currentPinConfig.wifi_ssid));
-    strncpy(currentPinConfig.wifi_password, "49127983361694305550", sizeof(currentPinConfig.wifi_password));
+    strncpy(currentPinConfig.wifi_ssid, "MyNetwork", sizeof(currentPinConfig.wifi_ssid));
+    strncpy(currentPinConfig.wifi_password, "MyPassword", sizeof(currentPinConfig.wifi_password));
     strncpy(currentPinConfig.wifi_hostname, "ESP32-IScan", sizeof(currentPinConfig.wifi_hostname));
     
     currentPinConfig.isValid = true;
