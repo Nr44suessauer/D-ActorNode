@@ -29,11 +29,6 @@ package "src/uart" {
     component [uart_wifi_config] as UART
 }
 
-' ─── src/network/ ───────────────────────────────────────────────────────────
-package "src/network" {
-    component [network_client] as NET
-}
-
 ' ─── src/hal/ ───────────────────────────────────────────────────────────────
 package "src/hal" {
     component [pin_config\n(NVS)] as PINCFG
@@ -65,7 +60,7 @@ MAIN --> DEVREG
 UART --> WIFI    : wifi save / reset
 UART --> PINCFG  : read / write
 UART --> LED     : led color / brightness
-UART --> MOTOR   : motor move / stop
+UART --> MOT28   : motor move / stop
 UART --> BTN     : button enable/disable
 UART --> DEVREG  : registry list/add/remove/clear
 WIFI --> PINCFG  : SSID, Hostname, DeviceName

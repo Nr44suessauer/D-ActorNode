@@ -8,7 +8,7 @@ skinparam BackgroundColor #FAFAFA
 skinparam ArrowColor #336699
 skinparam defaultTextAlignment center
 
-title Sequence Diagram – UART Command Processing\nExamples: "wifi ssid X" -> "wifi save"  .  "led color 1 ff0000"  .  "registry add button MyBtn pin=45"
+title Sequence Diagram – UART Command Processing\nExamples: "wifi ssid X" -> "wifi save"  .  "led color 255 0 0"  .  "registry add button MyBtn pin=45"
 
 actor "User\n(Serial Monitor)" as USER
 participant "main.cpp\nloop()" as MAIN
@@ -35,47 +35,54 @@ note over UART : '\n' received -> command complete
 UART -> UART   : processCommand("wifi ssid MyNetwork")
 UART -> UART   : processWifiCommand("ssid MyNetwork")
 UART -> UART   : strncpy(pendingSsid, "MyNetwork")
-UART -> USER   : "OK SSID staged: \"MyNetwork\"  ->  run 'wifi save' to apply"
+UART -> USER   : "✓ SSID staged: \"MyNetwork\"  ->  use 'wifi save' to apply"
 
 USER -> MAIN  : "wifi save\n"
 MAIN -> UART  : handleUartWifiConfig()
 UART -> UART  : processWifiCommand("save")
-UART -> PIN   : setWiFiConfig("MyNetwork", "", "MotorModule")
+UART -> PIN   : setWiFiConfig("MyNetwork", "", "D-ActorNode")
 PIN  -> NVS   : preferences.putString("wifi_ssid", "MyNetwork")
+UART -> UART  : clear pendingSsid/pass/host
+UART -> USER  : "💾 Saved  ->  SSID: \"MyNetwork\"  |  Hostname: \"D-ActorNode\""
 UART -> WIFIFW : WiFi.disconnect(true)
+UART -> UART  : delay(300)
 UART -> WIFI   : setupWiFi()
+WIFI -> PIN   : getWiFiConfig(ssid, pass, host)
 WIFI -> WIFIFW : WiFi.begin("MyNetwork", "")
 
-alt Connection successful
+alt Connection successful (< 15 s)
     WIFIFW --> WIFI : WL_CONNECTED
+    WIFI -> LED     : setColorByIndex(1) [Green]
     WIFI -> USER    : "[WiFi] Connected. IP: ..."
 else Connection failed
     WIFI -> WIFI    : startAccessPoint()
+    WIFI -> WIFIFW  : WiFi.softAP(deviceName)
+    WIFI -> LED     : setColorByIndex(2) [index 2]
     WIFI --> UART   : AP mode active
 end
 
 == Example 2: Set LED color via UART ==
 
-USER -> MAIN  : "led color 1 ff0000\n"
+USER -> MAIN  : "led color 255 0 0\n"
 MAIN -> UART  : handleUartWifiConfig()
-UART -> UART  : processCommand("led color 1 ff0000")
-UART -> UART  : processLedCommand("color 1 ff0000")
-UART -> LED   : setColorRGBForLed(1, 255, 0, 0)
+UART -> UART  : processCommand("led color 255 0 0")
+UART -> UART  : processLedCommand("color 255 0 0")
+UART -> LED   : setColorRGB(255, 0, 0)
 LED  --> UART : ok
-UART -> USER  : "✓ LED 1 → #FF0000"
+UART -> USER  : "✓ LED color set: R=255 G=0   B=0     (#FF0000)"
 
 == Example 3: Device Registry – add button ==
 
 USER -> MAIN   : "registry add button MyBtn pin=45 pullup=1\n"
 MAIN -> UART   : handleUartWifiConfig()
-UART -> UART   : processRegistryCommand("add button MyBtn pin=45 pullup=1")
-UART -> UART   : deviceTypeFromString("button") → DEV_BUTTON
-UART -> UART   : build configJson: {\"pin\":45,\"pullup\":1}
+UART -> DEVREG : deviceTypeFromString("button") → DEV_BUTTON
+UART -> UART   : build configJson: {"pin":45,"pullup":1}
 UART -> DEVREG : addDevice(DEV_BUTTON, "MyBtn", "{\"pin\":45,\"pullup\":1}")
 DEVREG -> NVS  : prefs.putString("e0", JSON)
+DEVREG -> NVS  : prefs.putUInt("nextid", 2)
 DEVREG --> UART : newId = 1
-UART -> USER   : "OK Device created: id=1 type=button name=MyBtn"
-UART -> USER   : "  -> Reboot to activate hardware."
+UART -> USER   : "✓ Device created: id=1 type=button name=MyBtn"
+UART -> USER   : "  -> Restart to activate hardware."
 
 == Example 4: Clear registry ==
 
@@ -85,56 +92,6 @@ UART -> DEVREG : clearDeviceRegistry()
 DEVREG -> NVS  : prefs.remove("e0")..prefs.remove("eN")
 DEVREG -> NVS  : prefs.putUInt("nextid", 1)
 DEVREG --> UART : ok
-UART -> USER   : "OK All registry entries cleared."
-
-@enduml
-
-
-== Characters are read ==
-
-USER -> MAIN  : Characters 'w','i','f','i',' ','s','s','i','d',' ','M','y','N','e','t','w','o','r','k','\n'
-MAIN -> UART  : handleUartWifiConfig()
-
-loop Serial.available()
-    UART -> UART : c = Serial.read()
-    UART -> UART : inputBuffer[inputPos++] = c
-end
-
-note over UART : '\n' received -> command complete
-
-UART -> UART   : processCommand("wifi ssid MyNetwork")
-UART -> UART   : processWifiCommand("ssid MyNetwork")
-UART -> UART   : strncpy(pendingSsid, "MyNetwork")
-UART -> USER   : "OK SSID staged: \"MyNetwork\"  ->  'wifi save' to apply"
-
-USER -> MAIN  : "wifi save\n"
-MAIN -> UART  : handleUartWifiConfig()
-UART -> UART  : processCommand("wifi save")
-UART -> UART  : processWifiCommand("save")
-UART -> PIN   : setWiFiConfig("MyNetwork", "", "MotorModule")
-PIN  -> NVS   : preferences.putString("wifi_ssid", "MyNetwork")
-NVS  --> PIN  : stored
-PIN  --> UART : ok
-
-UART -> UART  : clear pendingSsid/pass/host
-UART -> USER  : "Wi-Fi config saved"
-UART -> USER  : "   Reconnecting..."
-
-UART -> WIFIFW : WiFi.disconnect(true)
-UART -> UART   : delay(300)
-UART -> WIFI   : setupWiFi()
-
-WIFI -> PIN    : getWiFiConfig(ssid,pass,host)
-WIFI -> WIFIFW : WiFi.begin("MyNetwork", "")
-
-alt Connection successful (< 15 s)
-    WIFIFW --> WIFI : WL_CONNECTED
-    WIFI -> USER    : "[WiFi] Connected. IP: ..."
-    WIFI --> UART   : STA mode active
-else Connection failed
-    WIFI -> WIFI    : startAccessPoint()
-    WIFI -> WIFIFW  : WiFi.softAP(deviceName)
-    WIFI --> UART   : AP mode active
-end
+UART -> USER   : "✓ All registry entries cleared."
 
 @enduml

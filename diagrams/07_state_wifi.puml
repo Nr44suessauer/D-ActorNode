@@ -31,11 +31,11 @@ state STA_RECONNECTING : setColorByIndex(0) [Rot]\nconnectToWiFi(ssid, pass, 8s)
 STA_RECONNECTING --> STA_CONNECTED : WL_CONNECTED
 STA_RECONNECTING --> AP_ACTIVE     : Fehler
 
-state AP_ACTIVE : WiFi.mode(WIFI_AP)\nWiFi.softAP(deviceName)\nIP 192.168.4.1 (open)\nsetColorByIndex(2) [Yellow]\nwifi_ap_mode_active = true
+state AP_ACTIVE : WiFi.mode(WIFI_AP)\nWiFi.softAP(deviceName)\nIP 192.168.4.1 (open)\nsetColorByIndex(2) [index 2 = Blue]\nwifi_ap_mode_active = true
 
 note right of AP_ACTIVE
   deviceName = getDeviceInfo().deviceName
-  Default: "MotorModule"
+  Default: "D-ActorNode"
   Open network (no password)
 end note
 
