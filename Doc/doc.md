@@ -98,21 +98,26 @@ updateAdvancedMotor();       // Nicht-blockierende Motorschritte ausführen
 
 Der integrierte `WebServer` (ESP32 Arduino-Bibliothek) stellt alle Endpunkte auf Port 80 bereit. Vollständige Dokumentation in `API-Calls.md`.
 
-**LED-Steuerung**
+**LED-Steuerung** *(bis zu 3 Instanzen, `ledId` optional, Standard = 1)*
 
 | Methode | Endpunkt | Beschreibung |
 |---------|----------|--------------|
-| GET | `/color?index=<0-6>&ledId=<N>` | Farbe per Index setzen (0=Rot, 1=Grün, 2=Blau, 3=Gelb, 4=Lila, 5=Orange, 6=Weiß) |
-| GET | `/hexcolor?hex=<RRGGBB>&ledId=<N>` | Farbe als Hex-Wert |
-| GET | `/setBrightness?value=<0-255>` | Helligkeit setzen |
-| GET | `/setLedPin?ledId=<N>&pin=<P>&count=<C>` | LED-Pin und Pixelanzahl (NVS) |
+| GET | `/color?index=<0-6>` | Farbe per Index auf LED 1 setzen |
+| GET | `/color?index=<0-6>&ledId=<1-3>` | Farbe per Index auf bestimmter LED setzen |
+| GET | `/hexcolor?hex=<RRGGBB>` | Hex-Farbe auf LED 1 setzen |
+| GET | `/hexcolor?hex=<RRGGBB>&ledId=<1-3>` | Hex-Farbe auf bestimmter LED setzen |
+| GET | `/setBrightness?value=<0-255>` | Helligkeit setzen (alle Ausgänge) |
+| GET | `/setLedPin?pin=<P>&count=<C>` | LED 1 Pin und Pixelanzahl (NVS) |
+| GET | `/setLedPin?ledId=<1-3>&pin=<P>&count=<C>` | LED-Pin und Pixelanzahl für bestimmte LED (NVS) |
 
-**Servo**
+**Servo** *(bis zu 3 Instanzen, `servoId` optional, Standard = 1)*
 
 | Methode | Endpunkt | Beschreibung |
 |---------|----------|--------------|
-| GET | `/setServo?angle=<0-180>` | Servo auf Winkel fahren |
-| GET | `/setServoPin?pin=<P>` | Servo-Pin setzen (NVS) |
+| GET | `/setServo?angle=<0-180>` | Servo 1 auf Winkel fahren |
+| GET | `/setServo?angle=<0-180>&servoId=<1-3>` | Bestimmten Servo auf Winkel fahren |
+| GET | `/setServoPin?pin=<P>` | Pin für Servo 1 setzen (NVS) |
+| GET | `/setServoPin?pin=<P>&servoId=<1-3>` | Pin für bestimmten Servo setzen (NVS) |
 
 **28BYJ-48 Schrittmotor**
 
@@ -124,14 +129,18 @@ Der integrierte `WebServer` (ESP32 Arduino-Bibliothek) stellt alle Endpunkte auf
 | GET | `/motor28byj48?action=calibrate` | Position auf 0 setzen |
 | GET | `/motor28byj48?action=getStatus` | Status abfragen |
 
-**NEMA 17/23 Schrittmotor**
+**NEMA 17/23 Schrittmotor** *(bis zu 3 Instanzen, `motorId` optional, Standard = 1)*
 
 | Methode | Endpunkt | Beschreibung |
 |---------|----------|--------------|
-| GET | `/advancedMotor?...` | Motor bewegen |
-| GET | `/motorStop` | Motor stoppen |
-| GET | `/motorHome` | Referenzfahrt starten |
-| GET | `/motorStatus` | Status abfragen |
+| GET | `/advancedMotor?action=moveTo&position=<N>&speed=<N>` | Motor 1 absolut positionieren |
+| GET | `/advancedMotor?action=moveTo&position=<N>&speed=<N>&motorId=<1-3>` | Bestimmten Motor absolut positionieren |
+| GET | `/advancedMotor?action=moveRelative&steps=<N>&speed=<N>` | Motor 1 relativ fahren |
+| GET | `/advancedMotor?action=moveRelative&steps=<N>&speed=<N>&motorId=<1-3>` | Bestimmten Motor relativ fahren |
+| GET | `/advancedMotor?action=setHome&motorId=<1-3>` | Referenzpunkt für Motor setzen |
+| GET | `/motorStatus?motorId=<1-3>` | Status abfragen (JSON) |
+| GET | `/motorStop?motorId=<1-3>` | Motor stoppen |
+| GET | `/motorHome?motorId=<1-3>` | Referenzfahrt starten |
 
 **Taster**
 
